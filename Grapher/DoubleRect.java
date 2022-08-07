@@ -1,6 +1,4 @@
-package test;
-
-import java.util.ArrayList;
+package Grapher;
 
 public class DoubleRect {
     double x,y,width,height;
