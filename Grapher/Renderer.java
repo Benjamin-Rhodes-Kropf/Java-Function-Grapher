@@ -7,71 +7,64 @@ import java.util.ArrayList;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
-public class Graphics
+public class Renderer
 extends JPanel
 implements ActionListener{
-	private Timer t = new Timer(10, this);
 
-	public Point offset;
-	public double scale;
-	private  int largerOffset;
+	private Timer timer = new Timer(10, this);
+	private Point offset;
+	private double scale;
+	private int screenLimit;
+	private int sizeOfPinPoints = 8;
 	private Manager manager;
+	private ArrayList<Point> points = new ArrayList<Point>();
+	private double slopeColorScaleFactor = 5;
 
-	private ArrayList<Point> vecs = new ArrayList<Point>();
+	//mouse stuff
+	private int mouseWidth = 12;
+	private int mouseHeight = 36;
 
-	//graphics setup
-	public Graphics(Manager g) {
-		t.start();
+//CONSTRUCTOR
+	public Renderer(Manager g) {
+		timer.start();
 		manager = g;
-		//add a keyListener
 		this.addKeyListener(g);
 		this.setFocusable(true);
 		this.setFocusTraversalKeysEnabled(false);
 	}
 
-	//updates values for game called each frame
-	public  void updateValues(){
-		vecs = manager.getVectors();
-		offset = manager.offsets();
-		scale = manager.scale;
-		manager.checkMovement();
+////GET VALUES FROM MANAGER
+	private void getValuesFromManager(){
+		manager.updateCamera();
+		points = manager.getPoints();
+		offset = manager.getOffsets();
+		scale = manager.getScale();
 	}
 
-	//called each frame
+////RENDERS GRAPHICS EVERY FRAME
 	public void paintComponent(java.awt.Graphics g) {
-		//pulls new values from manager
-		updateValues();
+	////GET NEW VALUES
+		manager.startOfFrame();
+		getValuesFromManager();
 
-		//graphics setup
+	////CLEAR SCREEN
 		super.paintComponent(g);
 		Graphics2D g2d = (Graphics2D) g;
 		g2d.setColor(Color.black);
 		g2d.fillRect(0- Manager.dimension/2, 0- Manager.dimension/2, manager.getWindow().getWidth(), manager.getWindow().getHeight());
 
-
-
-		//draw line to connect each point to the next one
-		int lenOfLine = 0;
-
-		//helps further optimize which grey lines are calculated and shown kinda a crappy way to do it ngl)
-		g2d.setColor(Color.darkGray);
+	//DRAW GREY LINES
 		if(manager.xOffset + manager.getWindow().getWidth() > manager.yOffset + manager.getWindow().getHeight()){
-			largerOffset = (int) manager.xOffset + manager.getWindow().getWidth();
-		}else {
-			largerOffset = (int) manager.yOffset + manager.getWindow().getHeight();
-		}
-
-
-
-		//grey grid and numbers
-		for(float i = 1; i < largerOffset; i += 1) {
+			screenLimit = (int) manager.xOffset + manager.getWindow().getWidth();
+		}else { screenLimit = (int) manager.yOffset + manager.getWindow().getHeight(); }
+		g2d.setColor(Color.darkGray);
+		for(float i = 1; i < screenLimit; i += 1) {
 				//sets the size of the grey lines based on scale... similar to desmos
 				g2d.setStroke(new BasicStroke((float) scale / 10));
 
 				//gray text and lines going to the right
 				if((0 - offset.x + i*10) * scale  > 0 && (0 - offset.x + i*10) * scale  < manager.getWindow().getWidth()){
 					g2d.drawLine((int) ((0 - offset.x + i * 10) * scale), 0, (int) ((0 - offset.x + i * 10) * scale), manager.getWindow().getHeight());
-					lenOfLine +=1;
 					if(i != 0) {
 						g2d.setColor(Color.gray);
 						if (i % 10 == 0) {
@@ -89,7 +82,6 @@ implements ActionListener{
 				//gray text and lines going to the left
 				if((0 - offset.x - i*10) * scale  > 0 && (0 - offset.x - i*10) * scale  < manager.getWindow().getWidth()){
 					g2d.drawLine((int) ((0 - offset.x - i * 10) * scale), 0, (int) ((0 - offset.x - i * 10) * scale), manager.getWindow().getHeight());
-					lenOfLine +=1;
 					if(i != 0) {
 						g2d.setColor(Color.gray);
 						if (i % 10 == 0) {
@@ -108,7 +100,6 @@ implements ActionListener{
 				//gray text and lines going up
 				if((offset.y + i*10* scale) > 0 && (offset.y + i*10* scale)   < manager.getWindow().getHeight()) {
 					g2d.drawLine(0, (int) ((offset.y + i * 10 * scale)), manager.getWindow().getWidth(), (int) ((offset.y + i * 10 * scale)));
-					lenOfLine +=1;
 					if(i != 0) {
 						g2d.setColor(Color.gray);
 						if (i % 10 == 0) {
@@ -126,8 +117,6 @@ implements ActionListener{
 				//gray text and lines going down
 				if((offset.y - i*10* scale) > 0 && (offset.y - i*10* scale)   < manager.getWindow().getHeight()) {
 					g2d.drawLine(0, (int) ((offset.y - i * 10 * scale)), manager.getWindow().getWidth(), (int) ((offset.y - i * 10 * scale)));
-					lenOfLine +=1;
-
 					if(i != 0){
 						g2d.setColor(Color.gray);
 						if(i % 10 == 0){
@@ -145,55 +134,35 @@ implements ActionListener{
 				}
 		}
 
-		//red lines at the orgin
+	////DRAW RECTANGLES UNDER CURVE
+		for(int i = 0; i < manager.areaUnderCurveRecs.size(); i++){
+			g2d.setColor(Color.CYAN);
+			g2d.fillRect((int)((manager.areaUnderCurveRecs.get(i).x-offset.x)*scale), (int)((manager.areaUnderCurveRecs.get(i).y*scale+offset.y)),(int)(manager.areaUnderCurveRecs.get(i).width*scale)+1, (int)(-manager.areaUnderCurveRecs.get(i).y*scale));
+		}
+
+	////DRAW RED LINES THROUGH ORIGIN
 		g2d.setColor(Color.red);
 		g2d.setStroke(new BasicStroke(1.2f));
 		g2d.drawLine(0, (int) (offset.y), manager.getWindow().getWidth(), (int) (offset.y));
 		g2d.drawLine((int) (0-offset.x*scale), 0, (int) (0-offset.x*scale), manager.getWindow().getHeight());
 
-
-					//get ave slope for color coding
-					//		double sum = 0;
-					//		for(int i = 0; i < vecs.size()-2; i++) {
-					//			double riseOverRun = (Math.abs(vecs.get(i).y-vecs.get(i+1).y))/Math.abs(vecs.get(i).x-vecs.get(i+1).x);
-					//			sum += riseOverRun;
-					//		}
-					//		double aveSlope = sum/vecs.size();
-
-////DRAW AREA UNDER CURVE
-		for(int x = 0; x < manager.areaUnderCurveRecs.size(); x++){
-			//fill rect
-			g2d.setColor(Color.CYAN);
-			g2d.fillRect((int)(manager.areaUnderCurveRecs.get(x).x - offset.x*scale),(int)(manager.areaUnderCurveRecs.get(x).y + offset.y*scale),(int)manager.areaUnderCurveRecs.get(x).width,(int)manager.areaUnderCurveRecs.get(x).height);
-			//outline rect
-
-			g2d.setColor(Color.blue);
-			g2d.setStroke(new BasicStroke(3));
-			g2d.drawRect((int)(manager.areaUnderCurveRecs.get(x).x - offset.x*scale),(int)(manager.areaUnderCurveRecs.get(x).y + offset.y*scale),(int)manager.areaUnderCurveRecs.get(x).width,(int)manager.areaUnderCurveRecs.get(x).height);
-		}
-
-
-//draw the actual equation
-		//double slopeOfYellow = manager.aveSlope;
-		//System.out.println(slopeOfYellow);
-		double slopeOfYellow = 5;
-
-		for(int i = 0; i < vecs.size()-2; i++) {
+	////DRAW EQUATION BY CONNECTING POINTS
+		for(int i = 0; i < points.size()-2; i++) {
 			g2d.setStroke(new BasicStroke(3));
 			g2d.setColor(Color.pink);
 
 			//calculates slope between two vectors
-			double riseOverRun = (Math.abs(vecs.get(i).y-vecs.get(i+1).y))/Math.abs(vecs.get(i).x-vecs.get(i+1).x);
+			double riseOverRun = (Math.abs(points.get(i).y- points.get(i+1).y))/Math.abs(points.get(i).x- points.get(i+1).x);
 
 			//color coding/draw equation
 
-				if(riseOverRun <= slopeOfYellow){
-					double growing = riseOverRun/slopeOfYellow;
+				if(riseOverRun <= slopeColorScaleFactor){
+					double growing = riseOverRun/slopeColorScaleFactor;
 					double shrinking = 1 - growing;
 					g2d.setColor(new Color(0,(int)(255 * growing),(int)(255 * shrinking)));
 
-				}else if(riseOverRun <= slopeOfYellow*2) {
-					double growing = (riseOverRun-slopeOfYellow)/slopeOfYellow;
+				}else if(riseOverRun <= slopeColorScaleFactor*2) {
+					double growing = (riseOverRun-slopeColorScaleFactor)/slopeColorScaleFactor;
 					double shrinking = 1 - growing;
 					g2d.setColor(new Color((int) (255 * growing), (int) (255 * shrinking), 0));
 
@@ -202,24 +171,33 @@ implements ActionListener{
 				}
 
 				//draw the function
-				g2d.setStroke(new BasicStroke(5));
-				g2d.drawLine((int) vecs.get(i).x, (int) vecs.get(i).y, (int) vecs.get(i+1).x, (int) vecs.get(i+1).y);
+				g2d.setStroke(new BasicStroke(2));
+				g2d.drawLine((int) points.get(i).x, (int) points.get(i).y, (int) points.get(i+1).x, (int) points.get(i+1).y);
 				g2d.setStroke(new BasicStroke(1));
 		}
 
+	////DRAW MIN AND MAX
+		g2d.setColor(Color.ORANGE);
+		g2d.fillOval((int)(manager.maxX- sizeOfPinPoints /2), (int)(manager.maxY- sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
+		g2d.fillOval((int)(manager.minX- sizeOfPinPoints /2), (int)(manager.minY- sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
 
-
-
-
-//		draw min point and if mouse hover show text
-		int sizeOfPoint = 8;
-		g2d.setColor(Color.gray);
-		//draw max point
+	////DRAW ALL DATA POINTS
 		for(int i=0; i < manager.data.size(); i++) {
-			g2d.fillOval((int)((manager.data.get(i).x*10-offset.x)*scale)-sizeOfPoint/2, (int)((manager.data.get(i).y*scale*-10+offset.y))-sizeOfPoint/2,sizeOfPoint,sizeOfPoint);
+			g2d.fillOval((int)((manager.data.get(i).x*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((manager.data.get(i).y*scale*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
 		}
 
+	//DRAW scaling marker
+		g2d.setColor(Color.pink);
+		g2d.fillOval((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((0*scale*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
+		g2d.fillOval((int)((0*10-offset.x))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
+		g2d.drawLine((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((0*scale*-10+offset.y))- sizeOfPinPoints /2,(int)((0*10-offset.x))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2);
+//		g2d.drawLine((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2,(int)((0*10-offset.x))- sizeOfPinPoints /2,(int)((0*scale*-10+offset.y))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2);
+
+		manager.endOfFrame();
 	}
+
+
+
 
 	@Override
 	public void actionPerformed(ActionEvent e) {

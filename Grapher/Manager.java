@@ -6,94 +6,97 @@ import javax.swing.JFrame;
 import java.util.ArrayList; // import the ArrayList class
 import java.util.Comparator;
 import java.util.Scanner;
+import java.util.Vector;
 import javax.swing.*;
 
 public class Manager
 
 
-implements KeyListener{
+implements KeyListener, MouseListener, MouseWheelListener{
 	//setup
-	private final Graphics graphics;
+	private final Renderer renderer;
 	private final JFrame window;
 	public static final int width = 100;
 	public static final int height = 30;
 	public static final int dimension = 20;
+	private ArrayList<Double> equationVariables = new ArrayList<>();
 
-	//creates an array the size of the screen (should convert to Array List)
-	public ArrayList<Point> vectors = new ArrayList<>();
+
+	//creates an array the size of the screen
+	public ArrayList<Point> points = new ArrayList<>();
 	public ArrayList<Point> data = new ArrayList<>();
-	public ArrayList<Double> equationVariables = new ArrayList<>();
 	public ArrayList<DoubleRect> areaUnderCurveRecs = new ArrayList<>();
 
 	//for color coding
-	public double aveSlope;
+	private double aveSlope;
 
 	//input seen in the start
-	public Scanner inputReader;
+	private Scanner inputReader;
 
 	//min variables
 	public double minX = 0;
 	public double minY = 0;
-	public Point thelargestMin = new Point(minX,minY);
 
 	//max variables
 	public double maxX = 0;
 	public double maxY = 0;
-	public Point thelargestMax = new Point(maxX,maxY);
-
-	//stores a min
-	public Point accurateMin = new Point(0,0);
-	//stores a max
-	public Point accurateMax = new Point(0,0);
-
 
 	//CAMERA AND CAMERA MOVEMENT
 	//makes zooming smoother
 	private  double scaleVelocity = 0;
-	public   double scale = 1;
+	private   double scale = 1;
 
 	//used to make smooth graph movement
-	public float dx;
-	public float dy;
+	private float dx;
+	private float dy;
 
 	//sets the offsets so that we start in the center of the screen
 	public float xOffset = -width*dimension/2;
 	public float yOffset = height*dimension/2;
 
 	//mouse input values
-	public boolean wPressed;
-	public boolean aPressed;
-	public boolean sPressed;
-	public boolean dPressed;
-	public boolean upPressed;
-	public boolean downPressed;
-	public boolean equationSet = false;
+	private boolean wPressed;
+	private boolean aPressed;
+	private boolean sPressed;
+	private boolean dPressed;
+	private boolean upPressed;
+	private boolean downPressed;
+	private boolean mousePressed;
+	private boolean equationSet = false;
 
 	//mouse location
-	public Point mouseLocation = new Point(0,0);
+	public Point startFrameMouseLocation = new Point(0,0);
+	public Point endFrameMouseLocation = new Point(0,0);
+	public Point mouseFrameChange = new Point(0,0);
+	public Point mouseDistanceFromMid = new Point(0,0);
+
+	//User Preferences
+	private boolean calculateMaxAndMinPoints = true;
+
+//	public PointerInfo pointerInfo = MouseInfo.getPointerInfo();
 
 //CONSTRUCTOR
 	public Manager() {
-		//setup
 		window = new JFrame();
-		graphics = new Graphics(this);
+		renderer = new Renderer(this);
 		minX = 0;
 		minY = -10000000;
-		window.add(graphics);
+		window.add(renderer);
 		window.setTitle("The Final Grapher");
 		window.setSize(width * dimension, height * dimension); //600x600
 		window.setVisible(true);
 		window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		window.addMouseListener(this);
+		window.addMouseWheelListener(this);
 		inputReader = new Scanner(System.in);
-
 		//first function calls
 		requestInput();
-		initiateGrapher();
+		initiateGraph();
 	}
 
 //BASE GRAPHER FUNCTIONALITY
-	//initates the grapher based on user prefrences
-	private void initiateGrapher(){
+	//initiates the grapher based on user preferences
+	private void initiateGraph(){
 		double widthOfRectangles = 1;
 		double minX = 0;
 		double maxX = 10;
@@ -158,34 +161,65 @@ implements KeyListener{
 	}
 
 	//returns value given a location on the graph takes parameters of input for function and i the location of the vector in world space
-	public double calculateWorldSpaceValues(double input, int i){
+	private double calculateWorldSpaceValues(double worldSpaceXval, int screenSpaceXval){
 		//input is scaled to improve accuracy and ability to zoom in
-		input = input/10;
-		double equation = rawEquation(input);
+		worldSpaceXval = worldSpaceXval/10;
+		double equation = rawEquation(worldSpaceXval);
 		equation = equation * 10;
-
-		//checks if the new answer returned in actual equation is smaller than previous answers
-		if(equation/10 < minY){
-			minX = (i-width*dimension/2)/10;
-			thelargestMin.x = minX;
-			minY = equation/10;
-			thelargestMin.y = minY;
-		}
-		if(equation/10 > maxY){
-			maxX = (i-width*dimension/2)/10;
-			thelargestMax.x = maxX;
-			maxY = equation/10;
-			thelargestMax.y = maxY;
-		}
 
 		//flips it because of how coordinate space works
 		return (equation*-1);
 	}
-//END OF BASE GRAPHER FUNCTIONALITY
 
-//EXTENSIONS OF BASE GRAPHER
+	//returns an array of points representing the function
+	private void genPoints() {
+		//for the full width of the screen
+		points.clear();
+		minY = 1000000000;
+		maxY = -1000000000;
+		for(int localXVal = 0; localXVal < width*dimension; localXVal++){
+			//assigns a y value for every x value visible on screen relative to global positioning
+			double newY = (calculateWorldSpaceValues((localXVal/scale+xOffset), localXVal)*scale+yOffset);
+
+			if(calculateMaxAndMinPoints){
+				if(minY > newY){
+					minY = newY;
+					minX = localXVal;
+				}
+				if(maxY < newY){
+					maxY = newY;
+					maxX = localXVal;
+				}
+			}
+
+			points.add(new Point(localXVal, newY));
+		}
+	}
+
+	//move and scale graph
+	private void scaleGraph(double scale){
+		//checks if we have passed the limits of scale value
+		if(this.scale > 0.1f){
+			scaleVelocity += scale;
+			for(int k = 0; k < 20; k++){
+				if(this.scale > k*10){
+					scaleVelocity += scale;
+				}
+			}
+		}
+	}
+//END OF BASE FUNCTIONALITY
+
+/* From this point on code is more complex*/
+
+////ADDITIONAL FEATURES
+	private void printMinAndMax(){
+		System.out.println("min: (" + minX + "," + minX + ")");
+		System.out.println("max: (" + maxX + "," + maxY + ")");
+	}
+
 	//calculates the area under a curve
-	public void areaUnderCurve(double minX, double maxX, double xInterval){
+	private void areaUnderCurve(double minX, double maxX, double xInterval){
 		//Clear ArrayList
 		areaUnderCurveRecs.clear();
 		//Define area
@@ -238,7 +272,7 @@ implements KeyListener{
 	}
 
 	//returns avrge error for a given linear best fit line compared to the data arraylist
-	public double getQualityOfBestFit (ArrayList <Double> variables) {
+	private double getQualityOfBestFit (ArrayList <Double> variables) {
 			// y = mx+b
 			double y = 0;
 
@@ -254,9 +288,9 @@ implements KeyListener{
 			return aveError;
 		}
 
-		//iteratively finds best M and B for linear best fit line by testing quality of every move,
-		// making the best one, and reducing distance moved when the best move is to not move.
-	public void getBestFitLine () {
+	//iteratively finds best M and B for linear best fit line by testing quality of every move,
+	// making the best one, and reducing distance moved when the best move is to not move.
+	private void getBestFitLine () {
 		ArrayList<Double> variables = new ArrayList<Double>();
 		double interval = 1;
 		double sigFig = 1000;
@@ -282,7 +316,7 @@ implements KeyListener{
 		equationVariables = variables;
 	}
 
-		public void generateData ( int size, double variability, double m, double b, double range){
+	private void generateData ( int size, double variability, double m, double b, double range){
 		for (int i = 0; i < size; i++) {
 			double sigFig = 100;
 			double minX = -range / 2;
@@ -311,7 +345,7 @@ implements KeyListener{
 	}
 
 	//used for color coding in graphics
-	public void getAveSlope(){
+	private void getAveSlope(){
 		if(equationSet) {
 			ArrayList<Double> slopes = new ArrayList<>();
 			for (int i = -(width*dimension)/2; i < (width*dimension)/2; i++) {
@@ -337,14 +371,13 @@ implements KeyListener{
 
 	}
 
-
 	//Slopes between every integer point
-	public void getIntSlopes() {
-		for (int i = 1; i < vectors.size(); i++) {
+	private void getIntSlopes() {
+		for (int i = 1; i < points.size(); i++) {
 // Regular Slope used to get vertical asymtote
 			double x1, y1, x2, y2, x3, y3, x4, y4;
-			x1 = vectors.get(i).x;
-			y1 = vectors.get(i).y;
+			x1 = points.get(i).x;
+			y1 = points.get(i).y;
 
 			x2 = x1 + 1;
 			y2 = rawEquation(x2);
@@ -366,62 +399,37 @@ implements KeyListener{
 			}
 		}
 	}
-//END OF EXTENSIONS TO BASE GRAPHER
+//END OF EXTENSIONS
 
 
-
-
-//GRAPHICS STUFF
-	public Point offsets(){
+////GET FUNCTIONS (all information passed to the renderer)
+	public Point getOffsets(){
 		return(new Point(xOffset,yOffset));
 	}
-
-	public ArrayList<Point> genVectors() {
-		//for the full width of the screen
-		vectors.clear();
-
-		for(int i = 0; i < width*dimension; i++){
-			vectors.add(new Point(i, (calculateWorldSpaceValues((i/scale+xOffset), i)*scale+yOffset)));
-		}
-		return (vectors);
+	public ArrayList<Point> getPoints() {
+		genPoints();
+		return(points);
 	}
-	public ArrayList<Point> getVectors() {
-
-		return(genVectors());
-	}
-	//called when a zooming in or out occurs
-	public void scale(double scale){
-		//checks if we have passed the limits of scale value
-		if(this.scale > 0.1f){
-			scaleVelocity += scale;
-			for(int k = 0; k < 20; k++){
-				if(this.scale > k*10){
-					scaleVelocity += scale;
-				}
-			}
-		}
-	}
-
-	//physics based movments for easy glide graph motions
-	public void checkMovement(){
+	public double getScale() {return scale;}
+	public void updateCamera(){
 		if(wPressed){
-			dy += 0.1f/scale + 0.01f;
+			dy += (0.1f/scale + 0.01f)*scale;
 		}
 		if(aPressed){
 			dx -= 0.2f/scale + 0.01f;
 		}
 		if(sPressed){
-			dy -= 0.1f/scale + 0.01f;
+			dy -= (0.1f/scale + 0.01f)*scale;
 		}
 		if(dPressed){
 			dx += 0.2f/scale + 0.01f;
 		}
 		if(upPressed){
-			scale(0.001f);
+			scaleGraph(0.001f);
 			//System.out.println("scale = " + scale);
 		}
 		if(downPressed){
-			scale(-0.001f);
+			scaleGraph(-0.001f);
 			//System.out.println("scale = " + scale);
 		}
 		xOffset += dx;
@@ -433,18 +441,55 @@ implements KeyListener{
 		}else {
 			scale += scaleVelocity;
 			scaleVelocity *= 0.95;
+//			scaleVelocity *= 0.95;
 		}
 
-		//mouse stuff
+		//reduce zoom warping
+		System.out.println(mouseFrameChange.x);
+		scaleVelocity *= 1/(Math.abs((mouseFrameChange.x/50)*scale/100)+1);
+		scaleVelocity *= 1/(Math.abs((mouseFrameChange.y/50)*scale/100)+1);
+
+		//scale across the center of the screen
+		yOffset += scaleVelocity*mouseDistanceFromMid.y*-2/(scale*scale);
+		yOffset += scaleVelocity*mouseDistanceFromMid.y;
+		xOffset += scaleVelocity*mouseDistanceFromMid.x/(scale*scale);
+		xOffset += scaleVelocity*1000/(scale*scale);
+//		yOffset -= scaleVelocity*1000/(scale*scale);
+//		System.out.println(1/Math.abs(mouseFrameChange.x+1));
+
+
 		PointerInfo a = MouseInfo.getPointerInfo();
 		java.awt.Point b = a.getLocation();
-		mouseLocation.x = b.getX();
-		mouseLocation.y = b.getY();
+		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2-36);
+		System.out.println("mouseDistanceFromMid: (" + mouseDistanceFromMid.x + "," +mouseDistanceFromMid.y + ")");
 
 		dx *= 0.9;
 		dy *= 0.9;
 	}
+	public void startOfFrame(){
+		PointerInfo a = MouseInfo.getPointerInfo();
+		java.awt.Point b = a.getLocation();
+		startFrameMouseLocation = new Point(b.x, b.y);
+		if(mousePressed){
+//			startFrameMouseLocation = new Point(b.x, b.y);
+		}
+	}
+	public void endOfFrame(){
+		PointerInfo a = MouseInfo.getPointerInfo();
+		java.awt.Point b = a.getLocation();
+		endFrameMouseLocation = new Point(b.x, b.y);
+		mouseFrameChange = new Point(startFrameMouseLocation.x-endFrameMouseLocation.x, startFrameMouseLocation.y-endFrameMouseLocation.y);
+		if(mousePressed){
+//			endFrameMouseLocation = new Point(b.x, b.y);
+//			System.out.println("change in mouse location per frame: (" + (mouseFrameChange.x) + "," + (mouseFrameChange.y) + ")");
+			dx += mouseFrameChange.x/scale;
+			dy -= mouseFrameChange.y;
+		}
+	}
 
+
+
+	//key events
 	@Override
 	public void keyTyped(KeyEvent e) {	}
 
@@ -454,7 +499,7 @@ implements KeyListener{
 
 			if(keyCode == KeyEvent.VK_SPACE){
 				System.out.println("Space");
-				genVectors();
+				genPoints();
 			}
 
 			if(keyCode == KeyEvent.VK_W) {
@@ -479,6 +524,9 @@ implements KeyListener{
 			if(keyCode == KeyEvent.VK_DOWN) {
 				downPressed = true;
 			}
+		if(keyCode == KeyEvent.VK_M) {
+			printMinAndMax();
+		}
 	}
 
 	@Override
@@ -508,7 +556,43 @@ implements KeyListener{
 		}
 	}
 
+
+
+	@Override
+	public void mouseClicked(MouseEvent e) {
+
+	}
+
+	@Override
+	public void mousePressed(MouseEvent e) {
+		mousePressed = true;
+		System.out.println("mousePressed");
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		mousePressed = false;
+		System.out.println("mouseReleased");
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent e) {
+
+	}
+
+	@Override
+	public void mouseExited(MouseEvent e) {
+
+	}
+
+
 	public JFrame getWindow() {
 		return window;
+	}
+
+	@Override
+	public void mouseWheelMoved(MouseWheelEvent e) {
+		int notches = e.getWheelRotation();
+		scaleGraph(notches*-0.01);
 	}
 }
