@@ -16,7 +16,9 @@ public class Point {
         this.x = x;
         this.y = y;
     }
-
+    public String getString(){
+        return "(" + String.valueOf(x) + ", " + String.valueOf(y) + ")";
+    }
     public double getX(){
         return x;
     }

@@ -6,19 +6,24 @@ import javax.swing.JFrame;
 import java.util.ArrayList; // import the ArrayList class
 import java.util.Comparator;
 import java.util.Scanner;
-import java.util.Vector;
 import javax.swing.*;
 
 public class Manager
 
 
 implements KeyListener, MouseListener, MouseWheelListener{
+	//todo
+	//show mouse location in world space when clicked down
+	//display point location in worldspace on hover
+	//re work number line to change in size and scale infinitly
+	//re work lines to change in size and scale infinity
+
 	//setup
 	private final Renderer renderer;
 	private final JFrame window;
 	public static final int width = 100;
-	public static final int height = 30;
-	public static final int dimension = 20;
+	public static final int height = 100;
+	public static final int dimension = 10;
 	private ArrayList<Double> equationVariables = new ArrayList<>();
 
 
@@ -34,12 +39,14 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	private Scanner inputReader;
 
 	//min variables
-	public double minX = 0;
-	public double minY = 0;
-
+	public double localMinX = 0;
+	public double localMinY = 0;
 	//max variables
-	public double maxX = 0;
-	public double maxY = 0;
+	public double localMaxX = 0;
+	public double localMaxY = 0;
+
+	public Point equationMin;
+	public Point equationMax;
 
 	//CAMERA AND CAMERA MOVEMENT
 	//makes zooming smoother
@@ -51,9 +58,10 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	private float dy;
 
 	//sets the offsets so that we start in the center of the screen
-	public float xOffset = -width*dimension/2;
-	public float yOffset = height*dimension/2;
-
+//	public float xOffset = -width*dimension/2;
+//	public float yOffset = height*dimension/2;
+	public float xOffset = 0;
+	public float yOffset = 0;
 	//mouse input values
 	private boolean wPressed;
 	private boolean aPressed;
@@ -69,7 +77,9 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public Point endFrameMouseLocation = new Point(0,0);
 	public Point mouseFrameChange = new Point(0,0);
 	public Point mouseDistanceFromMid = new Point(0,0);
-
+	public Point mouseLocation = new Point();
+	public Point mouseLocationWorldSpace = new Point();
+	
 	//User Preferences
 	private boolean calculateMaxAndMinPoints = true;
 
@@ -79,8 +89,8 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public Manager() {
 		window = new JFrame();
 		renderer = new Renderer(this);
-		minX = 0;
-		minY = -10000000;
+		localMinX = 0;
+		localMinY = -10000000;
 		window.add(renderer);
 		window.setTitle("The Final Grapher");
 		window.setSize(width * dimension, height * dimension); //600x600
@@ -161,7 +171,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	}
 
 	//returns value given a location on the graph takes parameters of input for function and i the location of the vector in world space
-	private double calculateWorldSpaceValues(double worldSpaceXval, int screenSpaceXval){
+	private double calculateWorldSpaceValues(double worldSpaceXval){
 		//input is scaled to improve accuracy and ability to zoom in
 		worldSpaceXval = worldSpaceXval/10;
 		double equation = rawEquation(worldSpaceXval);
@@ -175,20 +185,22 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	private void genPoints() {
 		//for the full width of the screen
 		points.clear();
-		minY = 1000000000;
-		maxY = -1000000000;
+		localMinY = 1000000000;
+		localMaxY = -1000000000;
 		for(int localXVal = 0; localXVal < width*dimension; localXVal++){
 			//assigns a y value for every x value visible on screen relative to global positioning
-			double newY = (calculateWorldSpaceValues((localXVal/scale+xOffset), localXVal)*scale+yOffset);
+			double newY = (calculateWorldSpaceValues((localXVal/scale+xOffset))*scale+yOffset);
 
 			if(calculateMaxAndMinPoints){
-				if(minY > newY){
-					minY = newY;
-					minX = localXVal;
+				if(localMinY > newY){
+					localMinY = newY;
+					localMinX = localXVal;
+//					equationMin = new Point(localXVal,(calculateWorldSpaceValues((localXVal/scale+xOffset))));
 				}
-				if(maxY < newY){
-					maxY = newY;
-					maxX = localXVal;
+				if(localMaxY < newY){
+					localMaxY = newY;
+					localMaxX = localXVal;
+//					equationMax = new Point(localXVal,(calculateWorldSpaceValues((localXVal/scale+xOffset))));
 				}
 			}
 
@@ -214,8 +226,8 @@ implements KeyListener, MouseListener, MouseWheelListener{
 
 ////ADDITIONAL FEATURES
 	private void printMinAndMax(){
-		System.out.println("min: (" + minX + "," + minX + ")");
-		System.out.println("max: (" + maxX + "," + maxY + ")");
+		System.out.println("min: (" + localMinX + "," + localMinX + ")");
+		System.out.println("max: (" + localMaxX + "," + localMaxY + ")");
 	}
 
 	//calculates the area under a curve
@@ -444,24 +456,29 @@ implements KeyListener, MouseListener, MouseWheelListener{
 //			scaleVelocity *= 0.95;
 		}
 
-		//reduce zoom warping
-		System.out.println(mouseFrameChange.x);
+		//zooming should really be done with matrix math as shown here:
+		// DEMO: https://jsfiddle.net/7ekqg8cb/
+
+		//this is the less complicated less accurate way to do it
+		//if the mouse shifts suddenly while zooming we lerp the zoom velocity to zero
+//		System.out.println(mouseFrameChange.x);
 		scaleVelocity *= 1/(Math.abs((mouseFrameChange.x/50)*scale/100)+1);
 		scaleVelocity *= 1/(Math.abs((mouseFrameChange.y/50)*scale/100)+1);
 
+		//because all points are based on the top left and right of the screen if we zoom in it will move us left and up
+		//so we need to compensate for this
 		//scale across the center of the screen
-		yOffset += scaleVelocity*mouseDistanceFromMid.y*-2/(scale*scale);
-		yOffset += scaleVelocity*mouseDistanceFromMid.y;
+
 		xOffset += scaleVelocity*mouseDistanceFromMid.x/(scale*scale);
 		xOffset += scaleVelocity*1000/(scale*scale);
-//		yOffset -= scaleVelocity*1000/(scale*scale);
-//		System.out.println(1/Math.abs(mouseFrameChange.x+1));
 
 
+//		System.out.println(yOffset);
 		PointerInfo a = MouseInfo.getPointerInfo();
 		java.awt.Point b = a.getLocation();
+		mouseLocation = new Point(b.x, b.y);
 		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2-36);
-		System.out.println("mouseDistanceFromMid: (" + mouseDistanceFromMid.x + "," +mouseDistanceFromMid.y + ")");
+//		System.out.println("mouseDistanceFromMid: (" + mouseDistanceFromMid.x + "," +mouseDistanceFromMid.y + ")");
 
 		dx *= 0.9;
 		dy *= 0.9;
@@ -470,6 +487,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		PointerInfo a = MouseInfo.getPointerInfo();
 		java.awt.Point b = a.getLocation();
 		startFrameMouseLocation = new Point(b.x, b.y);
+
 		if(mousePressed){
 //			startFrameMouseLocation = new Point(b.x, b.y);
 		}
@@ -498,9 +516,16 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		int keyCode = e.getKeyCode();
 
 			if(keyCode == KeyEvent.VK_SPACE){
-				System.out.println("Space");
-				genPoints();
+
+				scale *= 2;
+				xOffset*= 0.5;
+				xOffset += 250;
+//				xOffset += xOffset+width*dimension/2;
+//				System.out.println(width*dimension/4);
+//				System.out.println(xOffset);
+//				xOffset += 250;
 			}
+
 
 			if(keyCode == KeyEvent.VK_W) {
 				wPressed = true;
@@ -566,7 +591,12 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	@Override
 	public void mousePressed(MouseEvent e) {
 		mousePressed = true;
-		System.out.println("mousePressed");
+		PointerInfo a = MouseInfo.getPointerInfo();
+		java.awt.Point b = a.getLocation();
+		mouseLocation = new Point(b.x, b.y);
+		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2+36);
+		mouseLocationWorldSpace = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+		System.out.println("mousePressed" + "-- distnace from center of screen:" + mouseLocationWorldSpace.getString());
 	}
 
 	@Override

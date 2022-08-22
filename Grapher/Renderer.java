@@ -54,6 +54,7 @@ implements ActionListener{
 		g2d.fillRect(0- Manager.dimension/2, 0- Manager.dimension/2, manager.getWindow().getWidth(), manager.getWindow().getHeight());
 
 	//DRAW GREY LINES
+		//TODO: add ability to draw lines to infinite zoom like Desmos (basically making this a for loop depending on scale)
 		if(manager.xOffset + manager.getWindow().getWidth() > manager.yOffset + manager.getWindow().getHeight()){
 			screenLimit = (int) manager.xOffset + manager.getWindow().getWidth();
 		}else { screenLimit = (int) manager.yOffset + manager.getWindow().getHeight(); }
@@ -177,9 +178,24 @@ implements ActionListener{
 		}
 
 	////DRAW MIN AND MAX
-		g2d.setColor(Color.ORANGE);
-		g2d.fillOval((int)(manager.maxX- sizeOfPinPoints /2), (int)(manager.maxY- sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
-		g2d.fillOval((int)(manager.minX- sizeOfPinPoints /2), (int)(manager.minY- sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
+		g2d.setColor(Color.gray);
+		g2d.fillOval((int)(manager.localMaxX - sizeOfPinPoints /2), (int)(manager.localMaxY - sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
+		g2d.fillOval((int)(manager.localMinX- sizeOfPinPoints /2), (int)(manager.localMinY - sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
+
+	//HIGHLIGHT MIN POINT WHEN HOVERED OVER
+		//if within x value
+		if(manager.mouseLocation.x-mouseWidth-sizeOfPinPoints/2 < (manager.localMaxX - sizeOfPinPoints /2) && manager.mouseLocation.x-mouseWidth+sizeOfPinPoints/2 > (manager.localMaxX - sizeOfPinPoints /2)){
+			//if within y value of circle
+			if(manager.mouseLocation.y-mouseHeight-sizeOfPinPoints/2 < (manager.localMaxY - sizeOfPinPoints /2) && manager.mouseLocation.y-mouseHeight+sizeOfPinPoints/2 > (manager.localMaxY - sizeOfPinPoints /2)){
+				//could be combined with distance equation check (im lazy :P)
+				g2d.setColor(Color.white);
+				g2d.fillOval((int)(manager.localMaxX - sizeOfPinPoints /2), (int)(manager.localMaxY - sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
+				g2d.fillOval((int)(manager.localMinX- sizeOfPinPoints /2), (int)(manager.localMinY - sizeOfPinPoints /2), sizeOfPinPoints, sizeOfPinPoints);
+				g2d.setColor(Color.white);
+				g2d.setFont(new Font("TimesRoman", Font.PLAIN, 22));
+				g2d.drawString("("+ ((int)((manager.localMaxX+manager.xOffset*scale)*10))/10 +", "+((int)((manager.localMaxY-manager.yOffset)*10))/10 + ")", (int)manager.localMaxX +sizeOfPinPoints, (int)manager.localMaxY -sizeOfPinPoints);
+			}
+		}
 
 	////DRAW ALL DATA POINTS
 		for(int i=0; i < manager.data.size(); i++) {
@@ -187,10 +203,10 @@ implements ActionListener{
 		}
 
 	//DRAW scaling marker
-		g2d.setColor(Color.pink);
-		g2d.fillOval((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((0*scale*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
-		g2d.fillOval((int)((0*10-offset.x))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
-		g2d.drawLine((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((0*scale*-10+offset.y))- sizeOfPinPoints /2,(int)((0*10-offset.x))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2);
+//		g2d.setColor(Color.pink);
+//		g2d.fillOval((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((0*scale*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
+//		g2d.fillOval((int)((0*10-offset.x))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2, sizeOfPinPoints, sizeOfPinPoints);
+//		g2d.drawLine((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2, (int)((0*scale*-10+offset.y))- sizeOfPinPoints /2,(int)((0*10-offset.x))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2);
 //		g2d.drawLine((int)((0*10-offset.x)*scale)- sizeOfPinPoints /2,(int)((0*10-offset.x))- sizeOfPinPoints /2,(int)((0*scale*-10+offset.y))- sizeOfPinPoints /2, (int)((0*-10+offset.y))- sizeOfPinPoints /2);
 
 		manager.endOfFrame();
