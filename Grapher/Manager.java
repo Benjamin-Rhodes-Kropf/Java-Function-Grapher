@@ -79,7 +79,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public Point mouseDistanceFromMid = new Point(0,0);
 	public Point mouseLocation = new Point();
 	public Point mouseLocationWorldSpace = new Point();
-	
+
 	//User Preferences
 	private boolean calculateMaxAndMinPoints = true;
 
@@ -452,36 +452,29 @@ implements KeyListener, MouseListener, MouseWheelListener{
 			scale = 0.3000001f;
 		}else {
 			scale += scaleVelocity;
-			scaleVelocity *= 0.95;
-//			scaleVelocity *= 0.95;
+			scaleVelocity *= 0.93;
 		}
+		dx *= 0.9;
+		dy *= 0.9;
 
 		//zooming should really be done with matrix math as shown here:
 		// DEMO: https://jsfiddle.net/7ekqg8cb/
 
 		//this is the less complicated less accurate way to do it
 		//if the mouse shifts suddenly while zooming we lerp the zoom velocity to zero
-//		System.out.println(mouseFrameChange.x);
 		scaleVelocity *= 1/(Math.abs((mouseFrameChange.x/50)*scale/100)+1);
 		scaleVelocity *= 1/(Math.abs((mouseFrameChange.y/50)*scale/100)+1);
 
 		//because all points are based on the top left and right of the screen if we zoom in it will move us left and up
 		//so we need to compensate for this
-		//scale across the center of the screen
+//		xOffset += scaleVelocity*mouseDistanceFromMid.x/(scale*scale);
+//		xOffset += scaleVelocity*1000/(scale*scale);
 
-		xOffset += scaleVelocity*mouseDistanceFromMid.x/(scale*scale);
-		xOffset += scaleVelocity*1000/(scale*scale);
-
-
-//		System.out.println(yOffset);
+		//mouse info
 		PointerInfo a = MouseInfo.getPointerInfo();
 		java.awt.Point b = a.getLocation();
 		mouseLocation = new Point(b.x, b.y);
 		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2-36);
-//		System.out.println("mouseDistanceFromMid: (" + mouseDistanceFromMid.x + "," +mouseDistanceFromMid.y + ")");
-
-		dx *= 0.9;
-		dy *= 0.9;
 	}
 	public void startOfFrame(){
 		PointerInfo a = MouseInfo.getPointerInfo();
@@ -516,14 +509,16 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		int keyCode = e.getKeyCode();
 
 			if(keyCode == KeyEvent.VK_SPACE){
+				PointerInfo a = MouseInfo.getPointerInfo();
+				java.awt.Point b = a.getLocation();
+				mouseLocation = new Point(b.x, b.y);
+				mouseLocationWorldSpace = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+				System.out.println("mousePressed" + "-- worlspace location:" + mouseLocationWorldSpace.getString());
+
 
 				scale *= 2;
-				xOffset*= 0.5;
-				xOffset += 250;
-//				xOffset += xOffset+width*dimension/2;
-//				System.out.println(width*dimension/4);
-//				System.out.println(xOffset);
-//				xOffset += 250;
+				xOffset = (float)((mouseLocationWorldSpace.x*10-width*dimension/(2*scale)));
+				yOffset = (float)(mouseLocationWorldSpace.y*scale*10+height*dimension/(2));
 			}
 
 
@@ -596,6 +591,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		mouseLocation = new Point(b.x, b.y);
 		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2+36);
 		mouseLocationWorldSpace = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+
 		System.out.println("mousePressed" + "-- distnace from center of screen:" + mouseLocationWorldSpace.getString());
 	}
 
