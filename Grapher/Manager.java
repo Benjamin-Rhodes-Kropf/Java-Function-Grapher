@@ -13,9 +13,9 @@ public class Manager
 
 implements KeyListener, MouseListener, MouseWheelListener{
 	//todo
-	//show mouse location in world space when clicked down
-	//display point location in worldspace on hover
-	//re work number line to change in size and scale infinitly
+	//show mouse location in world space when clicked down (DONE!)
+	//display point location in worldspace on hover (ISH)
+	//re work number line to change in size and scale infinitly (Oh Boy)
 	//re work lines to change in size and scale infinity
 
 	//setup
@@ -26,8 +26,6 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public static final int dimension = 10;
 	private ArrayList<Double> equationVariables = new ArrayList<>();
 
-
-	//creates an array the size of the screen
 	public ArrayList<Point> points = new ArrayList<>();
 	public ArrayList<Point> data = new ArrayList<>();
 	public ArrayList<DoubleRect> areaUnderCurveRecs = new ArrayList<>();
@@ -60,8 +58,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	//sets the offsets so that we start in the center of the screen
 	public float xOffset = -width*dimension/2;
 	public float yOffset = height*dimension/2;
-//	public float xOffset = 0;
-//	public float yOffset = 0;
+
 	//mouse input values
 	private boolean wPressed;
 	private boolean aPressed;
@@ -80,13 +77,18 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public Point mouseLocation = new Point();
 	public Point mouseLocationWS = new Point();
 
-	//User Preferences
+	//USER PREFERENCES
 	private boolean calculateMaxAndMinPoints = true;
-
-//	public PointerInfo pointerInfo = MouseInfo.getPointerInfo();
+	private boolean calculateAreaUnderCurve = true;
+	private boolean userInputOverride = true; //if true no prompt pops up and you can type your own equation into the 'rawEquation' function
+	private boolean zoomLimit = true;
+	double widthOfRectangles = 0.25;
+	double xStartOfRectangles = 0;
+	double xEndOfRectangles = 15;
 
 //CONSTRUCTOR
 	public Manager() {
+		//setup graph and manager
 		window = new JFrame();
 		renderer = new Renderer(this);
 		localMinX = 0;
@@ -99,19 +101,15 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		window.addMouseListener(this);
 		window.addMouseWheelListener(this);
 		inputReader = new Scanner(System.in);
-		//first function calls
-		requestInput();
+
 		initiateGraph();
 	}
 
 //BASE GRAPHER FUNCTIONALITY
 	//initiates the grapher based on user preferences
 	private void initiateGraph(){
-		double widthOfRectangles = 1;
-		double minX = 0;
-		double maxX = 10;
-
-		areaUnderCurve(minX,maxX,widthOfRectangles);
+		if(!userInputOverride) requestInput();
+		if(calculateAreaUnderCurve) areaUnderFunction(xStartOfRectangles,xEndOfRectangles,widthOfRectangles);
 		System.out.println();
 	}
 
@@ -164,8 +162,16 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	//returns an output given a input for the function
 	public double rawEquation(double input){
 		double output = 0;
-		for(int x = 0; x < equationVariables.size(); x++) {
-			output += equationVariables.get(x) * Math.pow(input,x);
+		if(userInputOverride){
+			//type your equation here as output = 'input'
+			//here are some examples
+//			output = input;
+			output = Math.sin(input/10)*10;
+//			output = input*input;
+		}else{
+			for(int x = 0; x < equationVariables.size(); x++) {
+				output += equationVariables.get(x) * Math.pow(input,x);
+			}
 		}
 		return (output);
 	}
@@ -208,30 +214,65 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		}
 	}
 
-	//move and scale graph
-	private void scaleGraph(double scale){
-		//checks if we have passed the limits of scale value
-		if(this.scale > 0.1f){
-			scaleVelocity += scale;
-			for(int k = 0; k < 20; k++){
-				if(this.scale > k*10){
-					scaleVelocity += scale;
-				}
-			}
-		}
-	}
-//END OF BASE FUNCTIONALITY
+////END OF BASE FUNCTIONALITY
 
 /* From this point on code is more complex*/
 
+
 ////ADDITIONAL FEATURES
+	//zooming in and out
+	private void changeZoomVelocity(double scaleDx){
+		//checks if we have passed the limits of scale value
+		if(this.scale > 0.1f){
+			scaleVelocity += scaleDx;
+			for(int k = 0; k < 20; k++){
+				if(this.scale > k*10){
+					scaleVelocity += scaleDx;
+
+				}
+			}
+		}
+		//maksure scale is not negitive
+
+	}
+
+	private void zoomIntoGraph(double zoomSpeed){
+
+
+		//get mouse lcation
+		PointerInfo a = MouseInfo.getPointerInfo();
+		java.awt.Point b = a.getLocation();
+		mouseLocation = new Point(b.x, b.y);
+
+		//Zoom methode 1.0 zoom straight to where mouse is
+		mouseLocationWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+
+		////Zoom methode 1.1
+		Point mouseBeforeChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+		Point mouseChangeinWS = new Point(0,0);
+		Point mouseDistanceFromCenterOfScreen = new Point(b.x-window.getWidth()/2,b.y-window.getHeight()/2);
+
+		//How much to zoom
+		scale += zoomSpeed;
+
+		//Zoom methode 1.0 zoom straight to where mouse is
+		xOffset = (float)((mouseLocationWS.x*10-width*dimension/(2*scale)));
+		yOffset = (float)(mouseLocationWS.y*scale*10+height*dimension/(2));
+
+
+		//zoom methode 1.1 takes the location from zoom methode 1.0 and makes it so that your mouse stays stationary when zooming
+		Point mouseAfterChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+		mouseChangeinWS = new Point(mouseAfterChangeInWS.x-mouseBeforeChangeInWS.x, mouseAfterChangeInWS.y-mouseBeforeChangeInWS.y);
+		xOffset -= mouseChangeinWS.x*10;
+		yOffset -= mouseChangeinWS.y*scale*10;
+	}
+
+	//getting min and max
 	private void printMinAndMax(){
 		System.out.println("min: (" + localMinX + "," + localMinX + ")");
 		System.out.println("max: (" + localMaxX + "," + localMaxY + ")");
 	}
-
-	//calculates the area under a curve
-	private void areaUnderCurve(double minX, double maxX, double xInterval){
+	private void areaUnderFunction(double minX, double maxX, double xInterval){
 		//Clear ArrayList
 		areaUnderCurveRecs.clear();
 		//Define area
@@ -280,11 +321,10 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		area = Math.round(area);
 		area *= xInterval;
 
-		System.out.println("Area Under Curve: " + area );
+		System.out.println("Area Under Function: " + area + "between" + xStartOfRectangles + " and " + xEndOfRectangles + "on the x-axis");
 	}
-
-	//returns avrge error for a given linear best fit line compared to the data arraylist
 	private double getQualityOfBestFit (ArrayList <Double> variables) {
+		//returns avrge error for a given linear best fit line compared to the data arraylist
 			// y = mx+b
 			double y = 0;
 
@@ -327,7 +367,6 @@ implements KeyListener, MouseListener, MouseWheelListener{
 
 		equationVariables = variables;
 	}
-
 	private void generateData ( int size, double variability, double m, double b, double range){
 		for (int i = 0; i < size; i++) {
 			double sigFig = 100;
@@ -356,7 +395,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		data.sort(Comparator.comparing(Point::getX));
 	}
 
-	//used for color coding in graphics
+	//color code the line
 	private void getAveSlope(){
 		if(equationSet) {
 			ArrayList<Double> slopes = new ArrayList<>();
@@ -382,8 +421,6 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		}
 
 	}
-
-	//Slopes between every integer point
 	private void getIntSlopes() {
 		for (int i = 1; i < points.size(); i++) {
 // Regular Slope used to get vertical asymtote
@@ -423,7 +460,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		return(points);
 	}
 	public double getScale() {return scale;}
-	public void updateCamera(){
+	public void updateCameraTransform(){
 		if(wPressed){
 			dy += (0.1f/scale + 0.01f)*scale;
 		}
@@ -437,21 +474,21 @@ implements KeyListener, MouseListener, MouseWheelListener{
 			dx += 0.2f/scale + 0.01f;
 		}
 		if(upPressed){
-			scaleGraph(0.001f);
+			changeZoomVelocity(0.001f);
 			//System.out.println("scale = " + scale);
 		}
 		if(downPressed){
-			scaleGraph(-0.001f);
+			changeZoomVelocity(-0.001f);
 			//System.out.println("scale = " + scale);
 		}
 		xOffset += dx;
 		yOffset += dy;
 
-		if(scale < 0.3f) {
-			scaleVelocity = 0;
-			scale = 0.3000001f;
+		if(scale < 0.2f && zoomLimit) {
+			scaleVelocity *= -0.001;
+			scale = 0.2000001;
 		}else {
-			scale += scaleVelocity;
+			zoomIntoGraph(scaleVelocity);
 			scaleVelocity *= 0.93;
 		}
 		dx *= 0.9;
@@ -460,21 +497,11 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		//zooming should really be done with matrix math as shown here:
 		// DEMO: https://jsfiddle.net/7ekqg8cb/
 
+
 		//this is the less complicated less accurate way to do it
 		//if the mouse shifts suddenly while zooming we lerp the zoom velocity to zero
 		scaleVelocity *= 1/(Math.abs((mouseFrameChange.x/50)*scale/100)+1);
 		scaleVelocity *= 1/(Math.abs((mouseFrameChange.y/50)*scale/100)+1);
-
-		//because all points are based on the top left and right of the screen if we zoom in it will move us left and up
-		//so we need to compensate for this
-//		xOffset += scaleVelocity*mouseDistanceFromMid.x/(scale*scale);
-//		xOffset += scaleVelocity*1000/(scale*scale);
-
-		//mouse info
-		PointerInfo a = MouseInfo.getPointerInfo();
-		java.awt.Point b = a.getLocation();
-		mouseLocation = new Point(b.x, b.y);
-		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2-36);
 	}
 	public void startOfFrame(){
 		PointerInfo a = MouseInfo.getPointerInfo();
@@ -497,8 +524,9 @@ implements KeyListener, MouseListener, MouseWheelListener{
 			dy -= mouseFrameChange.y;
 		}
 	}
-
-
+	public JFrame getWindow() {
+		return window;
+	}
 
 	//key events
 	@Override
@@ -508,6 +536,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public void keyPressed(KeyEvent e) {
 		int keyCode = e.getKeyCode();
 
+		//this is virtually the same code as the 'zoomIntoGraph' function
 			if(keyCode == KeyEvent.VK_SPACE){
 				//get mouse info
 				PointerInfo a = MouseInfo.getPointerInfo();
@@ -516,28 +545,23 @@ implements KeyListener, MouseListener, MouseWheelListener{
 
 				//my vars
 				mouseLocationWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
-				System.out.println("scaling... mouse WS location:" + mouseLocationWS.getString());
 				Point mouseBeforeChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
 				Point mouseChangeinWS = new Point(0,0);
 				Point mouseDistanceFromCenterOfScreen = new Point(b.x-window.getWidth()/2,b.y-window.getHeight()/2);
 
 				//How much to zoom
-				scale *= 1.1;
+				scale *= 2;
 
-				//Zoom methode A zoom straight to where mouse is
-//				xOffset = (float)((mouseLocationWS.x*10-width*dimension/(2*scale)));
-//				yOffset = (float)(mouseLocationWS.y*scale*10+height*dimension/(2));
-
-
-				//zoom methode B Zoom twords mouse more like desmos
-				xOffset = (float)(((mouseLocationWS.x)*10-width*dimension/(2*scale)));
+				//Zoom methode 1.0 zoom straight to where mouse is
+				xOffset = (float)((mouseLocationWS.x*10-width*dimension/(2*scale)));
 				yOffset = (float)(mouseLocationWS.y*scale*10+height*dimension/(2));
 
-				Point mouseAfterChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
-				mouseChangeinWS = new Point(mouseAfterChangeInWS.x-mouseBeforeChangeInWS.x, mouseAfterChangeInWS.y-mouseBeforeChangeInWS.y);
-
-				xOffset -= mouseChangeinWS.x*10;
-				yOffset -= mouseChangeinWS.y*scale*10;
+				//uncomment for zoom methode 1.1 feature
+//				Point mouseAfterChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+//				mouseChangeinWS = new Point(mouseAfterChangeInWS.x-mouseBeforeChangeInWS.x, mouseAfterChangeInWS.y-mouseBeforeChangeInWS.y);
+//
+//				xOffset -= mouseChangeinWS.x*10;
+//				yOffset -= mouseChangeinWS.y*scale*10;
 
 
 				//debug
@@ -638,14 +662,9 @@ implements KeyListener, MouseListener, MouseWheelListener{
 
 	}
 
-
-	public JFrame getWindow() {
-		return window;
-	}
-
 	@Override
 	public void mouseWheelMoved(MouseWheelEvent e) {
 		int notches = e.getWheelRotation();
-		scaleGraph(notches*-0.01);
+		changeZoomVelocity(notches*-0.01);
 	}
 }

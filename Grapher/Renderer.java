@@ -35,7 +35,7 @@ implements ActionListener{
 
 ////GET VALUES FROM MANAGER
 	private void getValuesFromManager(){
-		manager.updateCamera();
+		manager.updateCameraTransform();
 		points = manager.getPoints();
 		offset = manager.getOffsets();
 		scale = manager.getScale();
