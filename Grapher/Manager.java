@@ -58,10 +58,10 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	private float dy;
 
 	//sets the offsets so that we start in the center of the screen
-//	public float xOffset = -width*dimension/2;
-//	public float yOffset = height*dimension/2;
-	public float xOffset = 0;
-	public float yOffset = 0;
+	public float xOffset = -width*dimension/2;
+	public float yOffset = height*dimension/2;
+//	public float xOffset = 0;
+//	public float yOffset = 0;
 	//mouse input values
 	private boolean wPressed;
 	private boolean aPressed;
@@ -78,7 +78,7 @@ implements KeyListener, MouseListener, MouseWheelListener{
 	public Point mouseFrameChange = new Point(0,0);
 	public Point mouseDistanceFromMid = new Point(0,0);
 	public Point mouseLocation = new Point();
-	public Point mouseLocationWorldSpace = new Point();
+	public Point mouseLocationWS = new Point();
 
 	//User Preferences
 	private boolean calculateMaxAndMinPoints = true;
@@ -509,16 +509,41 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		int keyCode = e.getKeyCode();
 
 			if(keyCode == KeyEvent.VK_SPACE){
+				//get mouse info
 				PointerInfo a = MouseInfo.getPointerInfo();
 				java.awt.Point b = a.getLocation();
 				mouseLocation = new Point(b.x, b.y);
-				mouseLocationWorldSpace = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
-				System.out.println("mousePressed" + "-- worlspace location:" + mouseLocationWorldSpace.getString());
+
+				//my vars
+				mouseLocationWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+				System.out.println("scaling... mouse WS location:" + mouseLocationWS.getString());
+				Point mouseBeforeChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+				Point mouseChangeinWS = new Point(0,0);
+				Point mouseDistanceFromCenterOfScreen = new Point(b.x-window.getWidth()/2,b.y-window.getHeight()/2);
+
+				//How much to zoom
+				scale *= 1.1;
+
+				//Zoom methode A zoom straight to where mouse is
+//				xOffset = (float)((mouseLocationWS.x*10-width*dimension/(2*scale)));
+//				yOffset = (float)(mouseLocationWS.y*scale*10+height*dimension/(2));
 
 
-				scale *= 2;
-				xOffset = (float)((mouseLocationWorldSpace.x*10-width*dimension/(2*scale)));
-				yOffset = (float)(mouseLocationWorldSpace.y*scale*10+height*dimension/(2));
+				//zoom methode B Zoom twords mouse more like desmos
+				xOffset = (float)(((mouseLocationWS.x)*10-width*dimension/(2*scale)));
+				yOffset = (float)(mouseLocationWS.y*scale*10+height*dimension/(2));
+
+				Point mouseAfterChangeInWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+				mouseChangeinWS = new Point(mouseAfterChangeInWS.x-mouseBeforeChangeInWS.x, mouseAfterChangeInWS.y-mouseBeforeChangeInWS.y);
+
+				xOffset -= mouseChangeinWS.x*10;
+				yOffset -= mouseChangeinWS.y*scale*10;
+
+
+				//debug
+//				System.out.println("Mouse change in (WS):" + mouseChangeinWS.getString());
+//				System.out.println("mouse distance from center screen (LS):" + mouseDistanceFromCenterOfScreen.getString());
+//				System.out.println("xoffset:" + xOffset + "-- y offset:" + yOffset );
 			}
 
 
@@ -589,10 +614,12 @@ implements KeyListener, MouseListener, MouseWheelListener{
 		PointerInfo a = MouseInfo.getPointerInfo();
 		java.awt.Point b = a.getLocation();
 		mouseLocation = new Point(b.x, b.y);
-		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2-12,b.y-window.getHeight()/2+36);
-		mouseLocationWorldSpace = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+		mouseLocationWS = new Point((b.x/10+xOffset*scale/10)/scale, -((b.y-26)/10-yOffset/10)/scale);
+		mouseDistanceFromMid = new Point(b.x-window.getWidth()/2,b.y-window.getHeight()/2);
 
-		System.out.println("mousePressed" + "-- distnace from center of screen:" + mouseLocationWorldSpace.getString());
+		System.out.println("mousePressed" + "-- worldspace location:" + mouseLocationWS.getString());
+		System.out.println("mousePressed" + "distance from mid of window:" + mouseDistanceFromMid.getString());
+		System.out.println("xoffset:" + xOffset + "-- y offset:" + yOffset );
 	}
 
 	@Override
