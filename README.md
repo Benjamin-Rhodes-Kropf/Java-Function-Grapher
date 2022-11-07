@@ -11,7 +11,7 @@
 - graphs min and max points
 
 ## How To Enter Your Own Equations
-### first go to the manager file and set 'userInputOverride' to true 
+### first go to the manager script and set 'userInputOverride' to true 
 ```javascript
 private boolean userInputOverride = true; //like this
 ```
