@@ -2,6 +2,10 @@
 
 ![Annotation 2022-08-10 132620](https://user-images.githubusercontent.com/85074410/183977503-27de9bf0-de13-45b4-9f40-88f1eeb8ace9.jpg)
 
+
+https://user-images.githubusercontent.com/85074410/200207736-0cb1592a-2f6c-44b2-9302-b80cef2f278d.mov
+
+
 ## Features
 - zoom towards mouse pointer using scroll wheel
 - transalte using WASD
